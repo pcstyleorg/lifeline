@@ -2,6 +2,29 @@
 
 A personal AI agent built with the **OpenAI Agents SDK** that helps you capture, organize, and reflect on the meaningful moments of your life.
 
+## Quick Install
+
+**One-liner install (recommended):**
+```bash
+curl -fsSL https://raw.githubusercontent.com/pcstyleorg/lifeline/main/install.sh | bash
+```
+
+**Or clone and install:**
+```bash
+git clone https://github.com/pcstyleorg/lifeline.git && cd lifeline && bash install.sh
+```
+
+**macOS App Bundle (optional):**
+```bash
+bash scripts/install_app.sh
+```
+
+The installer will:
+- ✅ Check Python 3.10+ and install UV if needed
+- ✅ Set up virtual environment and install dependencies
+- ✅ Prompt for OpenAI API key (or skip and set later)
+- ✅ Optionally create command aliases and shortcuts
+
 ## Interfaces
 
 - **CLI**: Beautiful interactive terminal interface with autocomplete and rich formatting
@@ -35,7 +58,11 @@ Built using the OpenAI Agents SDK:
 - [UV](https://docs.astral.sh/uv/) (recommended) or pip
 - OpenAI API key (set as `OPENAI_API_KEY` environment variable)
 
-### Setup with UV (Recommended)
+### Quick Install (Recommended)
+
+Use the automated installer (see [Quick Install](#quick-install) above) - it handles everything automatically!
+
+### Manual Setup with UV
 
 UV is a fast Python package manager. Install it first if you haven't:
 
@@ -109,36 +136,36 @@ make run
 
 ### For Users
 
-**Pre-built releases:** Check the [Releases](https://github.com/pc-style/lifeline/releases) section for ready-to-use executables:
-- **macOS**: `LifeLine.dmg` - Double-click to mount, drag to Applications
-- **Windows**: `LifeLine-Windows.zip` - Extract and run `LifeLine.exe`
-- **Linux**: `LifeLine-Linux.tar.gz` - Extract and run `./LifeLine`
+**Recommended:** Use the [one-liner installer](#quick-install) - it's the easiest way to get started!
+
+**macOS App Bundle (optional):**
+```bash
+bash scripts/install_app.sh
+```
+Builds and installs a standalone `.app` bundle to `/Applications/LifeLine.app`.
 
 ### For Developers
 
-- **Tech install (bash):** `./scripts/install_lifeline.sh` - Multiple installation modes:
-  - **Quick install** (`--quick` or `-q`): Installs in current directory, just asks for API key
-  - **Interactive install** (no flag): Customize install directory, create aliases, add to PATH, create shortcuts
-  - **Test mode** (`--test` or `-t`): Install in `/tmp/lifeline-<id>`, auto-run tests, then auto-cleanup
-- **macOS DMG builder:** `./scripts/build_dmg.sh` bundles the CLI with PyInstaller and wraps it in a DMG (requires macOS plus `create-dmg`).
-- **Windows builder:** `./scripts/build_windows.ps1` creates a Windows executable and ZIP archive.
-- **Test scripts:** `./scripts/test_install.sh` validates all build scripts.
+**Installation modes:**
+- **Quick install** (`--quick` or `-q`): Installs in current directory, just asks for API key
+  ```bash
+  bash scripts/install_lifeline.sh --quick
+  ```
+- **Interactive install** (no flag): Customize install directory, create aliases, add to PATH, create shortcuts
+  ```bash
+  bash scripts/install_lifeline.sh
+  ```
+- **Test mode** (`--test` or `-t`): Install in `/tmp/lifeline-<id>`, auto-run tests, then auto-cleanup
+  ```bash
+  bash scripts/install_lifeline.sh --test
+  ```
 
-### Automated Releases
-
-GitHub Actions automatically build releases when you push a tag:
-```bash
-git tag v0.1.0
-git push origin v0.1.0
-```
-
-This triggers:
-- ✅ macOS DMG build
-- ✅ Windows executable + ZIP
-- ✅ Linux tarball
-- ✅ Automatic GitHub release with all artifacts
-
-Workflows are in `.github/workflows/` - hack them up for CI or personalized workflows as needed.
+**Build scripts:**
+- **macOS DMG builder:** `./scripts/build_dmg.sh` - Bundles CLI with PyInstaller and creates DMG
+- **macOS App installer:** `./scripts/install_app.sh` - Builds and installs `.app` bundle
+- **Windows builder:** `./scripts/build_windows.ps1` - Creates Windows executable and ZIP archive
+- **Linux builder:** `./scripts/build_linux.sh` - Creates Linux tarball
+- **Test scripts:** `./scripts/test_install.sh` - Validates all build scripts
 
 ### Example Interactions
 

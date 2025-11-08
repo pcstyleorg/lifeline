@@ -140,7 +140,7 @@ uninstall() {
   
   # Remove install directory
   info "Removing installation directory..."
-  read -p "Delete $install_dir? [y/N]: " -r
+  read -p "Delete $install_dir? [y/N]: " -r </dev/tty
   if [[ $REPLY =~ ^[Yy]$ ]]; then
     rm -rf "$install_dir"
     info "Installation directory removed"

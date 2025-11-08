@@ -143,10 +143,10 @@ prompt() {
   local prompt_text="$1"
   local default_value="${2:-}"
   local result
-  
+
   if [ -n "$default_value" ]; then
     printf "%s [%s]: " "$prompt_text" "$default_value" >&2
-    read -r result || true
+    read -r result </dev/tty || result=""
     # ensure we return default if result is empty or just whitespace
     result="${result:-$default_value}"
     result="${result#"${result%%[![:space:]]*}"}"  # trim leading whitespace
@@ -154,7 +154,7 @@ prompt() {
     echo "${result:-$default_value}"
   else
     printf "%s: " "$prompt_text" >&2
-    read -r result || true
+    read -r result </dev/tty || result=""
     result="${result#"${result%%[![:space:]]*}"}"  # trim leading whitespace
     result="${result%"${result##*[![:space:]]}"}"  # trim trailing whitespace
     echo "$result"
@@ -165,16 +165,16 @@ prompt_yesno() {
   local prompt_text="$1"
   local default="${2:-n}"
   local result
-  
+
   if [ "$default" = "y" ]; then
     printf "%s [Y/n]: " "$prompt_text" >&2
   else
     printf "%s [y/N]: " "$prompt_text" >&2
   fi
-  
-  read -r result
+
+  read -r result </dev/tty || result=""
   result="${result:-$default}"
-  
+
   case "$result" in
     [Yy]|[Yy][Ee][Ss]) return 0 ;;
     *) return 1 ;;
@@ -275,8 +275,8 @@ uninstall_lifeline() {
   else
     # Try to find it interactively
     printf "Enter LifeLine installation directory (or press Enter to search): "
-    read -r install_dir
-    
+    read -r install_dir </dev/tty
+
     if [ -z "$install_dir" ]; then
       # Search common locations
       for dir in "$HOME/.local/lifeline" "$HOME/lifeline"; do

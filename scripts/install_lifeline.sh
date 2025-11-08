@@ -61,12 +61,6 @@ else
   IN_REPO=false
 fi
 
-# Handle uninstall mode early
-if [ "$UNINSTALL_MODE" = true ]; then
-  uninstall_lifeline
-  exit 0
-fi
-
 # Get project source (download if needed)
 get_project_source() {
   local target_dir="$1"
@@ -667,5 +661,11 @@ main() {
     interactive_setup
   fi
 }
+
+# Handle uninstall mode (after all functions are defined)
+if [ "$UNINSTALL_MODE" = true ]; then
+  uninstall_lifeline
+  exit 0
+fi
 
 main "$@"

@@ -17,7 +17,9 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - os: self-hosted
+          - os:
+              - self-hosted
+              - macos
             label: macOS DMG
             artifact_name: lifeline-macos-dmg
             artifact_path: dist/LifeLine.dmg
@@ -46,10 +48,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-
-      - name: Install create-dmg
-        if: runner.os == 'macOS'
-        run: npm install -g create-dmg
 
       - name: Install uv (macOS/Linux)
         if: runner.os != 'Windows'

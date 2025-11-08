@@ -79,6 +79,7 @@ web-ui/.env*.local
 # Build artifacts
 *.spec
 *.icns
+!assets/icons/LifeLine.icns
 *.iconset/
 build/
 dist/

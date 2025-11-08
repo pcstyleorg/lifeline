@@ -35,21 +35,6 @@ ensure_uv() {
   export PATH="$HOME/.local/bin:$PATH"
 }
 
-ensure_createdmg() {
-  if command -v create-dmg >/dev/null 2>&1; then
-    return
-  fi
-  printf "installing create-dmg via npm (wymaga node)\n"
-  if ! command -v npm >/dev/null 2>&1; then
-    printf "brak npm - zainstaluj node first (brew install node?)\n"
-    exit 1
-  fi
-  npm install -g create-dmg || {
-    printf "create-dmg install fail, sorry\n"
-    exit 1
-  }
-}
-
 convert_icon() {
   local png_icon="$1"
   local icns_output="$2"
@@ -144,36 +129,66 @@ build_frontend() {
   printf "frontend build complete\n"
 }
 
-create_launcher() {
-  local app_dir="$1"
-  local launcher="$app_dir/LifeLine.app"
+create_app_bundle() {
+  local stage_dir="$1"
+  local app_bundle="$stage_dir/LifeLine.app"
   local icon_path="${2:-}"
   
-  mkdir -p "$launcher/Contents/MacOS"
-  mkdir -p "$launcher/Contents/Resources"
+  # create proper .app bundle structure
+  mkdir -p "$app_bundle/Contents/MacOS"
+  mkdir -p "$app_bundle/Contents/Resources"
   
   # copy icon if provided
   if [ -n "$icon_path" ] && [ -f "$icon_path" ]; then
-    cp "$icon_path" "$launcher/Contents/Resources/icon.icns" 2>/dev/null || true
+    cp "$icon_path" "$app_bundle/Contents/Resources/icon.icns" 2>/dev/null || true
   fi
   
-  # create launcher script
-  cat > "$launcher/Contents/MacOS/LifeLine" <<'LAUNCHER'
+  # copy executables into Resources
+  if [ -f "dist/lifeline-cli" ]; then
+    cp dist/lifeline-cli "$app_bundle/Contents/Resources/lifeline-cli"
+    chmod +x "$app_bundle/Contents/Resources/lifeline-cli"
+  fi
+  
+  if [ -f "dist/lifeline-web" ]; then
+    cp dist/lifeline-web "$app_bundle/Contents/Resources/lifeline-web"
+    chmod +x "$app_bundle/Contents/Resources/lifeline-web"
+  fi
+  
+  # copy frontend if built
+  if [ -d "web-ui/.next" ]; then
+    printf "bundling frontend into app...\n"
+    cp -r web-ui/.next "$app_bundle/Contents/Resources/frontend" 2>/dev/null || true
+    cp -r web-ui/public "$app_bundle/Contents/Resources/frontend-public" 2>/dev/null || true
+  fi
+  
+  # create launcher script that references Resources
+  cat > "$app_bundle/Contents/MacOS/LifeLine" <<'LAUNCHER'
 #!/usr/bin/env bash
 # LifeLine launcher - starts web interface
 
-APP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-cd "$APP_DIR"
+# get app bundle path (works even if symlinked)
+APP_BUNDLE="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+RESOURCES_DIR="$APP_BUNDLE/Contents/Resources"
+WEB_BIN="$RESOURCES_DIR/lifeline-web"
 
-# source .env if it exists
-if [ -f "$APP_DIR/.env" ]; then
+# create data dir in user's home if it doesn't exist
+DATA_DIR="$HOME/.lifeline"
+mkdir -p "$DATA_DIR"
+
+# source .env if it exists (check both app bundle and data dir)
+if [ -f "$RESOURCES_DIR/.env" ]; then
   set -a
-  source "$APP_DIR/.env"
+  source "$RESOURCES_DIR/.env"
+  set +a
+elif [ -f "$DATA_DIR/.env" ]; then
+  set -a
+  source "$DATA_DIR/.env"
   set +a
 fi
 
 # start web server (will prompt for API key if needed)
-"$APP_DIR/LifeLine Web" &
+cd "$RESOURCES_DIR"
+"$WEB_BIN" &
 WEB_PID=$!
 
 # wait a bit for server to start
@@ -186,10 +201,39 @@ open "http://localhost:8000"
 wait $WEB_PID
 LAUNCHER
 
-  chmod +x "$launcher/Contents/MacOS/LifeLine"
+  chmod +x "$app_bundle/Contents/MacOS/LifeLine"
+  
+  # create CLI wrapper script in Resources
+  cat > "$app_bundle/Contents/Resources/lifeline" <<'CLI_SCRIPT'
+#!/usr/bin/env bash
+# LifeLine CLI wrapper
+
+APP_BUNDLE="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+RESOURCES_DIR="$APP_BUNDLE/Contents/Resources"
+CLI_BIN="$RESOURCES_DIR/lifeline-cli"
+
+DATA_DIR="$HOME/.lifeline"
+mkdir -p "$DATA_DIR"
+
+# source .env if it exists
+if [ -f "$RESOURCES_DIR/.env" ]; then
+  set -a
+  source "$RESOURCES_DIR/.env"
+  set +a
+elif [ -f "$DATA_DIR/.env" ]; then
+  set -a
+  source "$DATA_DIR/.env"
+  set +a
+fi
+
+cd "$RESOURCES_DIR"
+exec "$CLI_BIN" "$@"
+CLI_SCRIPT
+
+  chmod +x "$app_bundle/Contents/Resources/lifeline"
   
   # create Info.plist
-  cat > "$launcher/Contents/Info.plist" <<PLIST
+  cat > "$app_bundle/Contents/Info.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
@@ -204,112 +248,47 @@ LAUNCHER
   <string>1.0</string>
   <key>CFBundlePackageType</key>
   <string>APPL</string>
+  <key>LSMinimumSystemVersion</key>
+  <string>10.13</string>
 PLIST
 
   # add icon reference if icon exists
-  if [ -f "$launcher/Contents/Resources/icon.icns" ]; then
-    cat >> "$launcher/Contents/Info.plist" <<PLIST
+  if [ -f "$app_bundle/Contents/Resources/icon.icns" ]; then
+    cat >> "$app_bundle/Contents/Info.plist" <<PLIST
   <key>CFBundleIconFile</key>
   <string>icon</string>
 PLIST
   fi
 
-  cat >> "$launcher/Contents/Info.plist" <<PLIST
+  cat >> "$app_bundle/Contents/Info.plist" <<PLIST
 </dict>
 </plist>
 PLIST
 
-  # set icon using fileicon (if available) or Rez/DeRez
-  if [ -f "$launcher/Contents/Resources/icon.icns" ]; then
-    # try to set icon using fileicon (install via: brew install fileicon)
+  # set icon using fileicon (if available)
+  if [ -f "$app_bundle/Contents/Resources/icon.icns" ]; then
     if command -v fileicon >/dev/null 2>&1; then
-      fileicon set "$launcher" "$launcher/Contents/Resources/icon.icns" 2>/dev/null || true
+      fileicon set "$app_bundle" "$app_bundle/Contents/Resources/icon.icns" 2>/dev/null || true
     fi
   fi
 
-  printf "created macOS launcher app\n"
+  printf "created macOS app bundle with all resources\n"
 }
 
 stage_payload() {
   local stage_dir="build/dmg-stage"
-  local app_dir="$stage_dir/LifeLine"
   local icon_icns="${1:-}"
   
   rm -rf "$stage_dir"
-  mkdir -p "$app_dir"
+  mkdir -p "$stage_dir"
 
-  # copy executables
-  cp dist/lifeline-cli "$app_dir/LifeLine CLI"
-  cp dist/lifeline-web "$app_dir/LifeLine Web"
-  chmod +x "$app_dir/LifeLine CLI"
-  chmod +x "$app_dir/LifeLine Web"
-
-  # copy frontend if built
-  if [ -d "web-ui/.next" ]; then
-    printf "copying frontend build...\n"
-    cp -r web-ui/.next "$app_dir/frontend" 2>/dev/null || true
-    cp -r web-ui/public "$app_dir/frontend-public" 2>/dev/null || true
-  fi
-
-  # create launcher app (with icon if available)
-  create_launcher "$app_dir" "$icon_icns"
-
-  # create README
-  cat > "$app_dir/READ_ME_FIRST.txt" <<'EOF'
-LifeLine - Personal Memory & Timeline Assistant
-===============================================
-
-QUICK START:
-1. Double-click "LifeLine.app" to start the web interface
-   (or run "./LifeLine Web" in Terminal for web server)
-2. Open http://localhost:8000 in your browser
-
-CLI MODE:
-1. Open Terminal
-2. cd to this directory
-3. ./LifeLine\ CLI
-
-SETUP:
-First launch will automatically prompt you for your OpenAI API key if not set.
-The key will be saved to .env file in this directory.
-
-You can also set it manually:
-Option 1 - Environment variable:
-  export OPENAI_API_KEY="sk-..."
-
-Option 2 - Create .env file in this directory:
-  echo "OPENAI_API_KEY=sk-..." > .env
-
-COMPONENTS:
-- LifeLine.app          - Launcher (starts web interface)
-- LifeLine CLI          - Command-line interface
-- LifeLine Web          - Web server (backend)
-- frontend/             - Web UI (if built)
-
-Tip: timeline data ląduje w ./data (auto tworzone).
-
-Have fun, ugh.
-EOF
-
-  # create CLI launcher script
-  cat > "$app_dir/lifeline" <<'CLI_SCRIPT'
-#!/usr/bin/env bash
-# LifeLine CLI launcher
-
-APP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-cd "$APP_DIR"
-
-# source .env if it exists
-if [ -f "$APP_DIR/.env" ]; then
-  set -a
-  source "$APP_DIR/.env"
-  set +a
-fi
-
-exec "$APP_DIR/LifeLine CLI" "$@"
-CLI_SCRIPT
-
-  chmod +x "$app_dir/lifeline"
+  # create the app bundle with everything inside
+  create_app_bundle "$stage_dir" "$icon_icns"
+  
+  # create Applications symlink for easy drag-and-drop
+  ln -s /Applications "$stage_dir/Applications"
+  
+  printf "staged app bundle for DMG\n"
 }
 
 make_dmg() {
@@ -317,29 +296,30 @@ make_dmg() {
   local dmg_name="LifeLine.dmg"
   local out="dist/$dmg_name"
   local icon_icns="${1:-}"
-  local icon_args=()
-
+  
   rm -f "$out"
   mkdir -p dist
-
+  
   if [ -n "$icon_icns" ] && [ -f "$icon_icns" ]; then
-    icon_args=(--volicon "$icon_icns")
     printf "using icon: %s\n" "$icon_icns"
+    cp "$icon_icns" "$stage_dir/.VolumeIcon.icns" 2>/dev/null || true
+    if command -v SetFile >/dev/null 2>&1; then
+      SetFile -a C "$stage_dir" 2>/dev/null || printf "// SetFile marudzi, ale ikona i tak się skopiuje\n"
+    else
+      printf "// SetFile brak, Finder sam ogarnie kiedyś indykator\n"
+    fi
   else
     printf "warning: brak icon.icns, jadę bez custom ikony\n"
   fi
-
-  create-dmg \
-    --volname "LifeLine" \
-    --window-pos 200 120 \
-    --window-size 540 380 \
-    --icon "LifeLine" 130 200 \
-    --icon-size 96 \
-    --app-drop-link 410 200 \
-    "${icon_args[@]}" \
-    "$out" \
-    "$stage_dir"
-
+  
+  printf "spinning dmg via hdiutil (klasyka)\n"
+  hdiutil create \
+    -volname "LifeLine" \
+    -srcfolder "$stage_dir" \
+    -ov \
+    -format UDZO \
+    "$out" >/dev/null
+  
   printf "\nDMG ready -> %s\n" "$out"
 }
 
@@ -351,14 +331,19 @@ main() {
 
   draw_banner
   ensure_uv
-  ensure_createdmg
   need_cmd "python3"
+  need_cmd "hdiutil"
 
-  # convert icon
+  # convert icon (albo użyj gotowca bo życie jest za krótkie)
   local icon_png="$project_root/icon.png"
   local icon_icns="build/LifeLine.icns"
+  local icon_prebuilt="$project_root/assets/icons/LifeLine.icns"
   
-  if [ -f "$icon_png" ]; then
+  if [ -f "$icon_prebuilt" ]; then
+    mkdir -p "$(dirname "$icon_icns")"
+    cp "$icon_prebuilt" "$icon_icns"
+    printf "using prebuilt icns (ktoś już nie spał nad tym)\n"
+  elif [ -f "$icon_png" ]; then
     convert_icon "$icon_png" "$icon_icns" || icon_icns=""
   else
     printf "warning: icon.png not found, skipping icon conversion\n"

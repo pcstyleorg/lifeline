@@ -1,0 +1,12 @@
+# LifeLine - Personal Memory & Timeline Assistant
+# OpenAI Agents SDK and dependencies
+#
+# NOTE: This project uses UV for package management (see pyproject.toml)
+# For the best experience, use: uv sync
+# This file is kept for compatibility with pip-based workflows
+
+openai-agents>=0.2.9
+pydantic>=2.0.0
+rich>=13.0.0
+python-dateutil>=2.8.0
+prompt-toolkit>=3.0.0

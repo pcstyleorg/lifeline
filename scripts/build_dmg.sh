@@ -166,39 +166,102 @@ create_app_bundle() {
 #!/usr/bin/env bash
 # LifeLine launcher - starts web interface
 
-# get app bundle path (works even if symlinked)
-APP_BUNDLE="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+set -u  # exit on undefined variable
+
+# better path resolution - works from Finder
+# script is at: LifeLine.app/Contents/MacOS/LifeLine
+# we need to go up 2 levels to get to .app root
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+APP_BUNDLE="$(cd "$SCRIPT_DIR/../.." && pwd)"
 RESOURCES_DIR="$APP_BUNDLE/Contents/Resources"
 WEB_BIN="$RESOURCES_DIR/lifeline-web"
 
-# create data dir in user's home if it doesn't exist
+# logging setup
 DATA_DIR="$HOME/.lifeline"
+LOG_FILE="$DATA_DIR/lifeline.log"
 mkdir -p "$DATA_DIR"
+
+# log function
+log() {
+  echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*" >> "$LOG_FILE" 2>&1
+}
+
+# error dialog function
+show_error() {
+  osascript -e "display dialog \"$1\" buttons {\"OK\"} default button \"OK\" with icon stop" 2>/dev/null || true
+  log "ERROR: $1"
+}
+
+# check if web binary exists
+if [ ! -f "$WEB_BIN" ]; then
+  show_error "LifeLine web server not found at: $WEB_BIN"
+  log "App bundle path: $APP_BUNDLE"
+  log "Resources dir: $RESOURCES_DIR"
+  log "Contents of Resources: $(ls -la "$RESOURCES_DIR" 2>&1)"
+  exit 1
+fi
+
+# make sure it's executable
+chmod +x "$WEB_BIN" 2>/dev/null || true
+
+log "Starting LifeLine..."
+log "App bundle: $APP_BUNDLE"
+log "Resources: $RESOURCES_DIR"
+log "Web binary: $WEB_BIN"
 
 # source .env if it exists (check both app bundle and data dir)
 if [ -f "$RESOURCES_DIR/.env" ]; then
+  log "Loading .env from Resources"
   set -a
-  source "$RESOURCES_DIR/.env"
+  source "$RESOURCES_DIR/.env" 2>> "$LOG_FILE" || true
   set +a
 elif [ -f "$DATA_DIR/.env" ]; then
+  log "Loading .env from data dir"
   set -a
-  source "$DATA_DIR/.env"
+  source "$DATA_DIR/.env" 2>> "$LOG_FILE" || true
   set +a
 fi
 
-# start web server (will prompt for API key if needed)
-cd "$RESOURCES_DIR"
-"$WEB_BIN" &
+# change to resources dir
+cd "$RESOURCES_DIR" || {
+  show_error "Cannot change to Resources directory: $RESOURCES_DIR"
+  exit 1
+}
+
+# start web server in background
+log "Starting web server..."
+"$WEB_BIN" >> "$LOG_FILE" 2>&1 &
 WEB_PID=$!
 
 # wait a bit for server to start
-sleep 2
+sleep 3
+
+# check if process is still running
+if ! kill -0 "$WEB_PID" 2>/dev/null; then
+  show_error "Web server crashed. Check log: $LOG_FILE"
+  log "Web server process died immediately"
+  exit 1
+fi
+
+log "Web server started (PID: $WEB_PID)"
 
 # open browser
-open "http://localhost:8000"
+log "Opening browser..."
+open "http://localhost:8000" || {
+  log "Failed to open browser"
+  show_error "Started server but couldn't open browser. Go to http://localhost:8000"
+}
 
-# wait for user to close
-wait $WEB_PID
+# wait for web server to exit
+log "Waiting for web server..."
+wait $WEB_PID || {
+  EXIT_CODE=$?
+  log "Web server exited with code: $EXIT_CODE"
+  show_error "Web server stopped unexpectedly. Check log: $LOG_FILE"
+  exit $EXIT_CODE
+}
+
+log "LifeLine stopped"
 LAUNCHER
 
   chmod +x "$app_bundle/Contents/MacOS/LifeLine"
@@ -208,7 +271,9 @@ LAUNCHER
 #!/usr/bin/env bash
 # LifeLine CLI wrapper
 
-APP_BUNDLE="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+# script is at: LifeLine.app/Contents/Resources/lifeline
+# go up 2 levels to get to .app root
+APP_BUNDLE="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 RESOURCES_DIR="$APP_BUNDLE/Contents/Resources"
 CLI_BIN="$RESOURCES_DIR/lifeline-cli"
 

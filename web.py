@@ -5,6 +5,7 @@ LifeLine Web - FastAPI backend with WebSocket chat and session management.
 import asyncio
 import json
 import os
+import sys
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Optional
@@ -35,12 +36,39 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Configuration
-DB_PATH = "data/lifeline.db"
-WEB_DB_PATH = "data/lifeline_web.db"
+# Configuration - detect if running from app bundle
+def get_data_dir():
+    """Get data directory - use ~/.lifeline if running from app bundle, else ./data"""
+    # simplest check: if cwd is in Contents/Resources, we're in app bundle
+    try:
+        cwd = Path.cwd().resolve()
+        # check if current directory path contains Contents/Resources
+        if 'Contents' in cwd.parts and 'Resources' in cwd.parts:
+            data_dir = Path.home() / ".lifeline"
+            data_dir.mkdir(parents=True, exist_ok=True)
+            return data_dir
+    except Exception:
+        pass
+    
+    # also check executable path (for PyInstaller bundles)
+    try:
+        if sys.executable:
+            exe_path = Path(sys.executable).resolve()
+            if 'Contents' in exe_path.parts and 'Resources' in exe_path.parts:
+                data_dir = Path.home() / ".lifeline"
+                data_dir.mkdir(parents=True, exist_ok=True)
+                return data_dir
+    except Exception:
+        pass
+    
+    # default to local data directory
+    data_dir = Path("data")
+    data_dir.mkdir(parents=True, exist_ok=True)
+    return data_dir
 
-# Ensure data directory exists
-Path("data").mkdir(exist_ok=True)
+DATA_DIR = get_data_dir()
+DB_PATH = str(DATA_DIR / "lifeline.db")
+WEB_DB_PATH = str(DATA_DIR / "lifeline_web.db")
 
 # Initialize databases
 db = TimelineDatabase(DB_PATH)
@@ -50,7 +78,11 @@ web_db = WebDatabase(WEB_DB_PATH)
 @app.on_event("startup")
 def startup_event():
     """Ensure API key is available on startup."""
-    ensure_api_key()
+    try:
+        ensure_api_key()
+    except SystemExit:
+        # allow server to start without API key (will prompt on first use)
+        print("Warning: No API key found. Server will start but chat will require API key setup.")
 
 
 # Request/Response models

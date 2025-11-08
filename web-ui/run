@@ -1,0 +1,87 @@
+#!/bin/bash
+
+# run.sh - quick script to manage the next.js project with pnpm
+
+set -e
+
+# colors for output
+GREEN='\033[0;32m'
+BLUE='\033[0;34m'
+YELLOW='\033[1;33m'
+NC='\033[0m' # no color
+
+# helper function to print colored messages
+print_msg() {
+    echo -e "${BLUE}>>>${NC} $1"
+}
+
+print_success() {
+    echo -e "${GREEN}✓${NC} $1"
+}
+
+print_warn() {
+    echo -e "${YELLOW}⚠${NC} $1"
+}
+
+# check if pnpm is installed
+if ! command -v pnpm &> /dev/null; then
+    print_warn "pnpm is not installed. Installing it now..."
+    npm install -g pnpm
+    print_success "pnpm installed"
+fi
+
+# parse command
+COMMAND=${1:-dev}
+
+# auto-install if node_modules is missing (skip for install command)
+if [ "$COMMAND" != "install" ] && [ "$COMMAND" != "i" ] && [ ! -d "node_modules" ]; then
+    print_warn "node_modules not found. Installing dependencies..."
+    # configure pnpm to allow build scripts
+    pnpm config set enable-pre-post-scripts true 2>/dev/null || true
+    pnpm install
+    print_success "Dependencies installed"
+fi
+
+case $COMMAND in
+    install|i)
+        print_msg "Installing dependencies with pnpm..."
+        # configure pnpm to allow build scripts
+        pnpm config set enable-pre-post-scripts true 2>/dev/null || true
+        pnpm install
+        print_success "Dependencies installed"
+        ;;
+    dev|d)
+        print_msg "Starting development server..."
+        pnpm dev
+        ;;
+    build|b)
+        print_msg "Building for production..."
+        pnpm build
+        print_success "Build complete"
+        ;;
+    start|s)
+        print_msg "Starting production server..."
+        pnpm start
+        ;;
+    lint|l)
+        print_msg "Running linter..."
+        pnpm lint
+        ;;
+    *)
+        echo "Usage: ./run.sh [command]"
+        echo ""
+        echo "Commands:"
+        echo "  install, i    Install dependencies"
+        echo "  dev, d        Start development server (default)"
+        echo "  build, b      Build for production"
+        echo "  start, s      Start production server"
+        echo "  lint, l       Run linter"
+        echo ""
+        echo "Examples:"
+        echo "  ./run.sh          # runs dev server"
+        echo "  ./run.sh install  # installs dependencies"
+        echo "  ./run.sh build    # builds for production"
+        exit 1
+        ;;
+esac
+

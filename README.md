@@ -2,6 +2,11 @@
 
 A personal AI agent built with the **OpenAI Agents SDK** that helps you capture, organize, and reflect on the meaningful moments of your life.
 
+## Interfaces
+
+- **CLI**: Beautiful interactive terminal interface with autocomplete and rich formatting
+- **Web**: Clean, mobile-friendly web interface with real-time chat ([Quick Start](WEB_QUICKSTART.md))
+
 ## Features
 
 - **Timeline Logging**: Record life events with natural language
@@ -11,6 +16,7 @@ A personal AI agent built with the **OpenAI Agents SDK** that helps you capture,
 - **Persistent Memory**: All conversations and timeline data stored locally in SQLite
 - **MCP Integration**: Basic MCP server for future timeline visualization tools
 - **Beautiful CLI**: Interactive terminal interface with rich formatting
+- **Web Interface**: Real-time chat with WebSocket, mobile-first responsive design
 
 ## Architecture
 
@@ -68,9 +74,25 @@ python main.py
 
 ## Usage
 
+### Web Interface (Recommended)
+
+For a beautiful, mobile-friendly experience, use the web interface:
+
+```bash
+# Terminal 1: Start the backend
+make web
+
+# Terminal 2: Start the frontend
+cd web-ui && npm run dev
+```
+
+Then open `http://localhost:3000` in your browser.
+
+See [WEB_QUICKSTART.md](WEB_QUICKSTART.md) for detailed instructions.
+
 ### Interactive CLI
 
-Start the LifeLine assistant:
+Start the LifeLine assistant in terminal:
 
 ```bash
 # With UV
@@ -78,6 +100,9 @@ uv run python main.py
 
 # Or with standard Python
 python main.py
+
+# Or use make
+make run
 ```
 
 ### Example Interactions

@@ -1,10 +1,11 @@
-.PHONY: help install run example export test format lint type-check clean
+.PHONY: help install run web example export test format lint type-check clean
 
 help:
 	@echo "LifeLine - Available Commands"
 	@echo "=============================="
 	@echo "  make install      - Install dependencies with UV"
 	@echo "  make run          - Run LifeLine CLI"
+	@echo "  make web          - Run LifeLine Web Server"
 	@echo "  make example      - Run example usage script"
 	@echo "  make export       - Export timeline data to JSON"
 	@echo "  make test         - Run tests"
@@ -19,6 +20,9 @@ install:
 
 run:
 	uv run python main.py
+
+web:
+	uv run uvicorn web:app --reload --port 8000
 
 example:
 	uv run python examples/example_usage.py

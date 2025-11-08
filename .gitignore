@@ -71,3 +71,10 @@ dmypy.json
 
 # Logs
 *.log
+
+# Next.js / Web UI
+web-ui/node_modules/
+web-ui/.next/
+web-ui/out/
+web-ui/.vercel
+web-ui/.env*.local

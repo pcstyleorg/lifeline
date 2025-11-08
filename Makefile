@@ -60,6 +60,8 @@ clean:
 	@echo "Cleaning frontend build..."
 	rm -rf web-ui/.next 2>/dev/null || true
 	rm -rf web-ui/.turbo 2>/dev/null || true
+	@echo "Cleaning ruff cache..."
+	rm -rf .ruff_cache/ 2>/dev/null || true
 	@echo "Cleaning test installs..."
 	find /tmp -maxdepth 1 -type d -name "lifeline-*" -exec rm -rf {} + 2>/dev/null || true
 	@echo "Clean complete!"

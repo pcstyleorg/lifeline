@@ -37,13 +37,22 @@ def save_env_file(env_path: Path, api_key: str) -> None:
 
 def validate_api_key(api_key: str) -> bool:
     """Validate API key by making a test API call."""
+    from openai import AuthenticationError
+
     try:
         client = OpenAI(api_key=api_key)
         # Make a minimal API call to validate the key
         client.models.list(limit=1)
         return True
-    except Exception:
+    except AuthenticationError:
+        # Only return False for actual authentication errors
         return False
+    except Exception as e:
+        # For other errors (network, timeout, etc.), assume key might be valid
+        # and warn the user but don't reject the key
+        console.print(f"[yellow]Warning: Could not validate API key due to: {type(e).__name__}[/yellow]")
+        console.print("[yellow]Assuming key is valid. If you encounter issues, check your key.[/yellow]")
+        return True
 
 
 def prompt_for_api_key() -> str:

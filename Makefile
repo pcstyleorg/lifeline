@@ -1,4 +1,6 @@
-.PHONY: help install run web example export test format lint type-check clean clean-all
+.PHONY: help install run web example export test format lint type-check clean clean-all build-cli build-web build-frontend build-all build-macos build-windows build-linux
+
+PYTHON ?= python3
 
 help:
 	@echo "LifeLine - Available Commands"
@@ -39,6 +41,34 @@ format:
 
 lint:
 	uv run ruff check lifeline/ main.py examples/
+
+.PHONY: build-cli
+build-cli:
+	$(PYTHON) -m scripts.build --component cli
+
+.PHONY: build-web
+build-web:
+	$(PYTHON) -m scripts.build --component web
+
+.PHONY: build-frontend
+build-frontend:
+	$(PYTHON) -m scripts.build --component frontend
+
+.PHONY: build-all
+build-all:
+	$(PYTHON) -m scripts.build --component all
+
+.PHONY: build-macos
+build-macos:
+	$(PYTHON) -m scripts.build --target macos --component all
+
+.PHONY: build-windows
+build-windows:
+	$(PYTHON) -m scripts.build --target windows --component all
+
+.PHONY: build-linux
+build-linux:
+	$(PYTHON) -m scripts.build --target linux --component all
 
 type-check:
 	uv run mypy lifeline/

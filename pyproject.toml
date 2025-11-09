@@ -51,8 +51,9 @@ dev = [
 ]
 
 [project.scripts]
-lifeline = "main:main"
+lifeline = "lifeline.cli:main"
 lifeline-mcp = "lifeline.mcp_server:main"
+lifeline-web = "lifeline.web_server:main"
 
 [project.urls]
 Homepage = "https://github.com/pc-style/lifeline"
